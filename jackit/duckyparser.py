@@ -2,7 +2,6 @@
 from __future__ import print_function, absolute_import
 from jackit import keymap
 
-
 class DuckyParser(object):
     ''' Help map ducky like script to HID codes to be sent '''
 
@@ -49,11 +48,21 @@ class DuckyParser(object):
         'LEFT':       [80, 0]
     }
 
+    # Add mouse button mappings
+    mouse_map = {
+        'MOUSE_LEFT': 1,
+        'MOUSE_RIGHT': 2,
+        'MOUSE_MIDDLE': 4,
+    }
+
     blank_entry = {
         "mod": 0,
         "hid": 0,
         "char": '',
-        "sleep": 0
+        "sleep": 0,
+        "mouse_x": 0,
+        "mouse_y": 0,
+        "mouse_btn": 0,
     }
 
     def __init__(self, attack_script, layout=None):
@@ -146,7 +155,7 @@ class DuckyParser(object):
 
             elif line.startswith("DELAY"):
                 entry = self.blank_entry.copy()
-                entry['sleep'] = line.split()[1]
+                entry['sleep'] = int(line.split()[1])
                 entries.append(entry)
 
             elif line.startswith("STRING"):
@@ -185,6 +194,33 @@ class DuckyParser(object):
                 entry = self.blank_entry.copy()
                 entry['char'] = "RIGHT"
                 entry['hid'], entry['mod'] = self.char_to_hid('RIGHT')
+                entries.append(entry)
+
+            # Mouse movement parsing
+            elif line.startswith("MOUSE_MOVE"):
+                entry = self.blank_entry.copy()
+                _, x, y = line.split()
+                entry['mouse_x'] = int(x)
+                entry['mouse_y'] = int(y)
+                entries.append(entry)
+
+            # Mouse click parsing
+            elif line.startswith("MOUSE_CLICK"):
+                entry = self.blank_entry.copy()
+                parts = line.split()
+                button = parts[1]
+                entry['mouse_btn'] = self.mouse_map.get(button.upper(), 0)
+                if len(parts) > 2:
+                    entry['sleep'] = int(parts[2])  # Optional delay after click
+                entries.append(entry)
+
+            # Mouse press and release parsing
+            elif line.startswith("MOUSE_DOWN") or line.startswith("MOUSE_UP"):
+                entry = self.blank_entry.copy()
+                action, button = line.split()
+                entry['mouse_btn'] = self.mouse_map.get(button.upper(), 0)
+                if action == "MOUSE_UP":
+                    entry['mouse_btn'] = -entry['mouse_btn']  # Negative value for release
                 entries.append(entry)
 
             elif len(line) == 0:
